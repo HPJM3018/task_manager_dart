@@ -34,7 +34,7 @@ abstract class Task extends TaskInterface {
     this.dueDate,
     this.isCompleted = false,
     DateTime? createdAt,
-  }) : this.createdAt = createdAt ?? DateTime.now();
+  }) : createdAt = createdAt ?? DateTime.now();
 
   @override
   void markCompleted() {
@@ -65,20 +65,13 @@ abstract class Task extends TaskInterface {
 // Concrete implementation of Task
 class TaskImpl extends Task {
   TaskImpl({
-    required String id,
-    required String title,
-    required TaskPriority priority,
-    DateTime? dueDate,
-    bool isCompleted = false,
-    DateTime? createdAt,
-  }) : super(
-    id: id,
-    title: title,
-    priority: priority,
-    dueDate: dueDate,
-    isCompleted: isCompleted,
-    createdAt: createdAt,
-  );
+    required super.id,
+    required super.title,
+    required super.priority,
+    super.dueDate,
+    super.isCompleted = false,
+    super.createdAt,
+  });
 
   @override
   Map<String, dynamic> toJson() {

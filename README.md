@@ -17,7 +17,6 @@ A command-line task management application built in pure Dart. This application 
 
 - **Dart** - Programming language
 - **Test** - Unit testing framework
-- **Path** - File path handling
 
 ## Project Structure
 
@@ -190,13 +189,15 @@ dart test --coverage coverage
 
 ### Test coverage
 
-The tests cover:
+The suite contains 19 tests covering:
 
 - Task creation
-- Urgent task creation
+- Urgent task creation and urgency level validation (1-10)
 - Marking tasks as completed
 - Repository operations (CRUD)
-- Integration service
+- Service integration (adding, listing, sorting, completing)
+- Separation of active and completed tasks
+- Input validation and rejection of unknown sort keys
 - JSON serialization
 - Exception handling
 
@@ -204,7 +205,6 @@ The tests cover:
 
 - [Dart Documentation](https://dart.dev/guides)
 - [Test Package](https://pub.dev/packages/test)
-- [Path Package](https://pub.dev/packages/path)
 
 ## License
 

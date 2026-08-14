@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'package:test/test.dart';
-import '../lib/exceptions/task_exceptions.dart';
-import '../lib/models/task.dart';
-import '../lib/models/task_priority.dart';
-import '../lib/models/urgent_task.dart';
-import '../lib/repositories/task_repository.dart';
-import '../lib/services/task_service.dart';
+import 'package:task_manager/exceptions/task_exceptions.dart';
+import 'package:task_manager/models/task.dart';
+import 'package:task_manager/models/task_priority.dart';
+import 'package:task_manager/models/urgent_task.dart';
+import 'package:task_manager/repositories/task_repository.dart';
+import 'package:task_manager/services/task_service.dart';
 
 void main() {
   // Test 1: Task Creation
@@ -218,6 +218,71 @@ void main() {
 
       final updated = await repository.findById(task.id);
       expect(updated!.isCompleted, isTrue);
+    });
+
+    test('Should keep the urgency level provided by the caller', () async {
+      await service.addTask(
+        title: 'Urgency Passthrough',
+        priority: 'high',
+        isUrgent: true,
+        urgencyLevel: 9,
+      );
+
+      final tasks = await service.listTasks();
+      expect(tasks.single, isA<UrgentTask>());
+      expect((tasks.single as UrgentTask).urgencyLevel, equals(9));
+    });
+
+    test('Should default the urgency level when none is provided', () async {
+      await service.addTask(
+        title: 'Urgency Default',
+        priority: 'low',
+        isUrgent: true,
+      );
+
+      final tasks = await service.listTasks();
+      expect(
+        (tasks.single as UrgentTask).urgencyLevel,
+        equals(TaskService.defaultUrgencyLevel),
+      );
+    });
+
+    test('Should reject an out-of-range urgency level', () async {
+      await expectLater(
+        service.addTask(
+          title: 'Urgency Too High',
+          priority: 'high',
+          isUrgent: true,
+          urgencyLevel: 11,
+        ),
+        throwsA(isA<InvalidTaskDataException>()),
+      );
+    });
+
+    test('Should reject an unknown sort key', () async {
+      await expectLater(
+        service.listTasks(sortBy: 'colour'),
+        throwsA(isA<InvalidTaskDataException>()),
+      );
+    });
+
+    test('Should separate completed tasks from active ones', () async {
+      await service.addTask(title: 'Stays Active', priority: 'low');
+      await service.addTask(title: 'Gets Completed', priority: 'low');
+
+      final active = await service.listTasks();
+      expect(active.length, equals(2));
+
+      final target = active.firstWhere((t) => t.title == 'Gets Completed');
+      await service.markCompleted(target.id);
+
+      final remaining = await service.listTasks();
+      final completed = await service.listCompleted();
+      final all = await service.listAll();
+
+      expect(remaining.single.title, equals('Stays Active'));
+      expect(completed.single.title, equals('Gets Completed'));
+      expect(all.length, equals(2));
     });
   });
 

@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:path/path.dart' as path;
 
 import '../exceptions/task_exceptions.dart';
 import '../models/task.dart';
@@ -12,7 +11,7 @@ class TaskRepository implements Repository<Task> {
   List<Task> _tasks = [];
 
   TaskRepository({String? filePath})
-      : this.filePath = filePath ?? 'tasks.json';
+      : filePath = filePath ?? 'tasks.json';
 
   @override
   Future<List<Task>> findAll() async {

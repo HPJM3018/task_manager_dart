@@ -6,10 +6,13 @@ import '../models/urgent_task.dart';
 import '../repositories/task_repository.dart';
 
 class TaskService {
-  final TaskRepository _repository;
+  /// Urgency level applied when the caller does not provide one.
+  static const int defaultUrgencyLevel = 5;
 
-  // Ajoutez ce getter public
-  TaskRepository get repository => _repository;
+  /// Sort keys accepted by [listTasks].
+  static const List<String> sortOptions = ['priority', 'date'];
+
+  final TaskRepository _repository;
 
   TaskService(this._repository);
 
@@ -18,6 +21,7 @@ class TaskService {
     required String priority,
     DateTime? dueDate,
     bool isUrgent = false,
+    int? urgencyLevel,
   }) async {
     if (title.trim().isEmpty) {
       throw InvalidTaskDataException('title', 'Title cannot be empty');
@@ -28,13 +32,13 @@ class TaskService {
 
     Task task;
     if (isUrgent) {
-      // Urgent tasks are always high priority
+      // Urgent tasks are always high priority; UrgentTask validates the range.
       task = UrgentTask(
         id: id,
         title: title.trim(),
         priority: TaskPriority.high,
         dueDate: dueDate,
-        urgencyLevel: taskPriority.priorityLevel + 5,
+        urgencyLevel: urgencyLevel ?? defaultUrgencyLevel,
       );
     } else {
       task = TaskImpl(
@@ -49,11 +53,18 @@ class TaskService {
   }
 
   Future<List<Task>> listTasks({String sortBy = 'priority'}) async {
+    if (!sortOptions.contains(sortBy)) {
+      throw InvalidTaskDataException(
+        'sortBy',
+        'Must be one of: ${sortOptions.join(', ')}',
+      );
+    }
+
     final tasks = await _repository.findAll();
-    
-    // Filter out completed tasks by default, but show all if requested
+
+    // Only active tasks are listed here; see listCompleted() and listAll().
     final activeTasks = tasks.where((t) => !t.isCompleted).toList();
-    
+
     if (sortBy == 'priority') {
       activeTasks.sort((a, b) {
         // Urgent tasks come first
@@ -85,6 +96,15 @@ class TaskService {
     }
 
     return activeTasks;
+  }
+
+  /// Every task, completed or not.
+  Future<List<Task>> listAll() => _repository.findAll();
+
+  /// Tasks that have already been completed.
+  Future<List<Task>> listCompleted() async {
+    final tasks = await _repository.findAll();
+    return tasks.where((t) => t.isCompleted).toList();
   }
 
   Future<void> markCompleted(String id) async {

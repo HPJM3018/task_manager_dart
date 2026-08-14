@@ -6,21 +6,14 @@ class UrgentTask extends Task {
   final int urgencyLevel;
 
   UrgentTask({
-    required String id,
-    required String title,
-    required TaskPriority priority,
-    DateTime? dueDate,
-    bool isCompleted = false,
-    DateTime? createdAt,
+    required super.id,
+    required super.title,
+    required super.priority,
+    super.dueDate,
+    super.isCompleted = false,
+    super.createdAt,
     required this.urgencyLevel,
-  }) : super(
-    id: id,
-    title: title,
-    priority: priority,
-    dueDate: dueDate,
-    isCompleted: isCompleted,
-    createdAt: createdAt,
-  ) {
+  }) {
     if (urgencyLevel < 1 || urgencyLevel > 10) {
       throw InvalidTaskDataException(
         'urgencyLevel', 

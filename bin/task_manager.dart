@@ -1,10 +1,9 @@
 import 'dart:io';
 
-import '../lib/exceptions/task_exceptions.dart';
-import '../lib/models/task.dart';
-import '../lib/models/urgent_task.dart';
-import '../lib/repositories/task_repository.dart';
-import '../lib/services/task_service.dart';
+import 'package:task_manager/exceptions/task_exceptions.dart';
+import 'package:task_manager/models/urgent_task.dart';
+import 'package:task_manager/repositories/task_repository.dart';
+import 'package:task_manager/services/task_service.dart';
 
 void main() async {
   final repository = TaskRepository();
@@ -67,26 +66,18 @@ Future<void> _addTask(TaskService service) async {
   print('-' * 30);
 
   stdout.write('Title: ');
-  final title = stdin.readLineSync() ?? '';
+  final title = stdin.readLineSync()?.trim() ?? '';
   if (title.isEmpty) {
-    print(' Title cannot be empty');
+    print('Title cannot be empty');
     return;
   }
 
   stdout.write('Priority (low/medium/high) [medium]: ');
-  final priority = stdin.readLineSync() ?? 'medium';
+  final priorityInput = stdin.readLineSync()?.trim() ?? '';
+  final priority = priorityInput.isEmpty ? 'medium' : priorityInput;
 
-  stdout.write('Due date (YYYY-MM-DD) [optional]: ');
-  final dueDateInput = stdin.readLineSync() ?? '';
-  DateTime? dueDate;
-  if (dueDateInput.isNotEmpty) {
-    try {
-      dueDate = DateTime.parse(dueDateInput);
-    } catch (_) {
-      print('Invalid date format. Use YYYY-MM-DD');
-      return;
-    }
-  }
+  final dueDate = _readDueDate();
+  if (dueDate == _invalidDate) return;
 
   await service.addTask(
     title: title,
@@ -101,36 +92,37 @@ Future<void> _addUrgentTask(TaskService service) async {
   print('-' * 30);
 
   stdout.write('Title: ');
-  final title = stdin.readLineSync() ?? '';
+  final title = stdin.readLineSync()?.trim() ?? '';
   if (title.isEmpty) {
     print('Title cannot be empty');
     return;
   }
 
   stdout.write('Priority (low/medium/high) [high]: ');
-  final priority = stdin.readLineSync() ?? 'high';
+  final priorityInput = stdin.readLineSync()?.trim() ?? '';
+  final priority = priorityInput.isEmpty ? 'high' : priorityInput;
 
-  stdout.write('Due date (YYYY-MM-DD) [optional]: ');
-  final dueDateInput = stdin.readLineSync() ?? '';
-  DateTime? dueDate;
-  if (dueDateInput.isNotEmpty) {
-    try {
-      dueDate = DateTime.parse(dueDateInput);
-    } catch (_) {
-      print('Invalid date format. Use YYYY-MM-DD');
-      return;
-    }
-  }
+  final dueDate = _readDueDate();
+  if (dueDate == _invalidDate) return;
 
   stdout.write('Urgency level (1-10) [5]: ');
-  final urgencyInput = stdin.readLineSync() ?? '5';
-  final isUrgent = true;
+  final urgencyInput = stdin.readLineSync()?.trim() ?? '';
+  var urgencyLevel = TaskService.defaultUrgencyLevel;
+  if (urgencyInput.isNotEmpty) {
+    final parsed = int.tryParse(urgencyInput);
+    if (parsed == null) {
+      print('Urgency level must be a whole number between 1 and 10');
+      return;
+    }
+    urgencyLevel = parsed;
+  }
 
   await service.addTask(
     title: title,
     priority: priority,
     dueDate: dueDate,
-    isUrgent: isUrgent,
+    isUrgent: true,
+    urgencyLevel: urgencyLevel,
   );
   print('Urgent task added successfully!');
 }
@@ -140,36 +132,39 @@ Future<void> _listTasks(TaskService service) async {
   print('-' * 30);
 
   stdout.write('Sort by (priority/date) [priority]: ');
-  final sortBy = stdin.readLineSync()?.toLowerCase() ?? 'priority';
+  final sortInput = stdin.readLineSync()?.toLowerCase().trim() ?? '';
+  final sortBy = sortInput.isEmpty ? 'priority' : sortInput;
 
   final tasks = await service.listTasks(sortBy: sortBy);
+  final completed = await service.listCompleted();
 
-  if (tasks.isEmpty) {
+  if (tasks.isEmpty && completed.isEmpty) {
     print('No tasks found.');
     return;
   }
 
-  print('\nActive Tasks:');
-  for (var task in tasks) {
-    final status = task.isCompleted ? '' : '';
-    final dueDate = task.dueDate != null 
-        ? ' (Due: ${_formatDate(task.dueDate!)})' 
-        : '';
-    
-    if (task is UrgentTask) {
-      print('  $status ${task.title} [${task.priority}]$dueDate - URGENCY: ${task.urgencyLevel}/10');
-    } else {
-      print('  $status  ${task.title} [${task.priority}]$dueDate');
+  if (tasks.isEmpty) {
+    print('\nNo active tasks.');
+  } else {
+    print('\nActive Tasks:');
+    for (var task in tasks) {
+      final dueDate = task.dueDate != null
+          ? ' (Due: ${_formatDate(task.dueDate!)})'
+          : '';
+
+      if (task is UrgentTask) {
+        print('  ${task.title} [${task.priority}]$dueDate'
+            ' - URGENCY: ${task.urgencyLevel}/10');
+      } else {
+        print('  ${task.title} [${task.priority}]$dueDate');
+      }
     }
   }
 
-  // Show completed tasks too (changed from service._repository to service.repository)
-  final allTasks = await service.repository.findAll();
-  final completed = allTasks.where((t) => t.isCompleted).toList();
   if (completed.isNotEmpty) {
     print('\nCompleted Tasks:');
     for (var task in completed) {
-      print('${task.title} [${task.priority}]');
+      print('  ${task.title} [${task.priority}]');
     }
   }
 }
@@ -178,9 +173,7 @@ Future<void> _completeTask(TaskService service) async {
   print('\n Complete Task');
   print('-' * 30);
 
-  // Changed from service._repository to service.repository
-  final tasks = await service.repository.findAll();
-  final activeTasks = tasks.where((t) => !t.isCompleted).toList();
+  final activeTasks = await service.listTasks();
 
   if (activeTasks.isEmpty) {
     print('No active tasks to complete.');
@@ -193,7 +186,7 @@ Future<void> _completeTask(TaskService service) async {
   }
 
   stdout.write('\nEnter task ID: ');
-  final id = stdin.readLineSync() ?? '';
+  final id = stdin.readLineSync()?.trim() ?? '';
   if (id.isEmpty) {
     print('Task ID cannot be empty');
     return;
@@ -207,8 +200,7 @@ Future<void> _deleteTask(TaskService service) async {
   print('\n Delete Task');
   print('-' * 30);
 
-  // Changed from service._repository to service.repository
-  final tasks = await service.repository.findAll();
+  final tasks = await service.listAll();
 
   if (tasks.isEmpty) {
     print('No tasks to delete.');
@@ -217,12 +209,12 @@ Future<void> _deleteTask(TaskService service) async {
 
   print('All tasks:');
   for (var task in tasks) {
-    final status = task.isCompleted ? '' : ' ';
+    final status = task.isCompleted ? '[done]' : '[todo]';
     print('  $status ${task.id} - ${task.title} [${task.priority}]');
   }
 
   stdout.write('\nEnter task ID: ');
-  final id = stdin.readLineSync() ?? '';
+  final id = stdin.readLineSync()?.trim() ?? '';
   if (id.isEmpty) {
     print('Task ID cannot be empty');
     return;
@@ -230,6 +222,24 @@ Future<void> _deleteTask(TaskService service) async {
 
   await service.deleteTask(id);
   print(' Task deleted successfully!');
+}
+
+/// Sentinel returned by [_readDueDate] when the input could not be parsed.
+final DateTime _invalidDate = DateTime.utc(0);
+
+/// Prompts for an optional due date. Returns null when left blank and
+/// [_invalidDate] when the input is not a valid date.
+DateTime? _readDueDate() {
+  stdout.write('Due date (YYYY-MM-DD) [optional]: ');
+  final dueDateInput = stdin.readLineSync()?.trim() ?? '';
+  if (dueDateInput.isEmpty) return null;
+
+  try {
+    return DateTime.parse(dueDateInput);
+  } catch (_) {
+    print('Invalid date format. Use YYYY-MM-DD');
+    return _invalidDate;
+  }
 }
 
 void _showHelp() {
