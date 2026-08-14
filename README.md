@@ -37,7 +37,13 @@ task_manager/
 │   └── exceptions/
 │       └── task_exceptions.dart   # Custom exceptions
 ├── test/
-│   └── task_manager_test.dart     # Unit tests
+│   ├── models/
+│   │   ├── task_test.dart          # Task creation, completion, JSON
+│   │   └── urgent_task_test.dart   # Urgency validation, JSON
+│   ├── repositories/
+│   │   └── task_repository_test.dart  # CRUD and persistence
+│   └── services/
+│       └── task_service_test.dart  # Business logic integration
 ├── pubspec.yaml                    # Project dependencies
 └── tasks.json                      # Persistence file (generated)
 ```
@@ -181,7 +187,10 @@ dart test
 dart test --verbose
 
 # Run a specific test file
-dart test test/task_manager_test.dart
+dart test test/services/task_service_test.dart
+
+# Run every test in a folder
+dart test test/models
 
 # Run the tests with code coverage
 dart test --coverage coverage
